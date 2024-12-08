@@ -1,0 +1,36 @@
+vtysh
+config t
+int fa0/0 
+no sh
+ip address 192.168.1.2 255.255.255.0
+ip ospf network point-to-point
+ip ospf hello-interval 10
+ip ospf dead-interval 40
+ip ospf mtu-ignore
+int fa0/1 
+ no sh 
+ ip address 192.168.10.1 255.255.255.0
+ exit
+int tunnel 0
+ no sh
+ tunnel mode gre ip
+ tunnel source f0/1
+ tunnel dest 192.168.20.1
+ ip address 192.168.30.1 255.255.255.252
+ exit
+
+ip route 0.0.0.0 0.0.0.0 192.168.10.2
+ip route 192.168.20.0 255.255.255.0 192.168.10.2 
+access-list 10 deny 192.168.20.1
+access-list 10 permit any
+
+route-map OSPF_FILTER permit 10
+ match ip address 10
+ exit
+router ospf 
+ network 192.168.1.0 0.0.0.255 area 0
+ network 192.168.30.1 0.0.0.3 area 1
+ redistribute connected route-map OSPF_FILTER
+end
+wr
+!

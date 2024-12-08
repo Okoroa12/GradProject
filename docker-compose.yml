@@ -1,0 +1,114 @@
+services:
+  frr:
+    image: frrouting/frr:latest
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == worker
+      replicas: 2
+    configs:
+      - source: frr_config
+        target: /etc/frr/frr.conf
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    networks:
+      - overlay_net
+
+  firewall:
+    image: ubuntu:22.04
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == worker
+      replicas: 2
+    configs:
+      - source: iptables_config
+        target: /app/iptables_1.py
+      - source: arp_prevent_config
+        target: /app/arp_prevent.py
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_MODULE
+    security_opt:
+      - apparmor:unconfined
+    command: >
+      bash -c "
+        apt-get update && 
+        DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip iptables iproute2 &&
+        pip3 install scapy &&
+        mkdir -p /var/log &&
+        touch /var/log/firewall.log &&
+        (python3 /app/iptables_1.py 2>&1 | tee -a /var/log/firewall.log) &
+        (python3 /app/arp_prevent.py 2>&1 | tee -a /var/log/firewall.log) &
+        tail -f /var/log/firewall.log
+      "
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - overlay_net
+
+  vpn:
+    image: vimagick/strongswan
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == worker
+      replicas: 2
+    configs:
+      - source: ipsec_conf
+        target: /etc/ipsec.conf
+      - source: ipsec_secrets
+        target: /etc/ipsec.secrets
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      - overlay_net
+
+  dhcp-dns:
+    image: jpillora/dnsmasq
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == worker
+      replicas: 2
+    configs:
+      - source: dnsmasq_config
+        target: /etc/dnsmasq.conf
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - HTTP_USER=admin
+      - HTTP_PASS=admin
+    networks:
+      - overlay_net
+
+networks:
+  overlay_net:
+    driver: overlay
+    attachable: true
+    driver_opts:
+      encrypted: "true"
+
+configs:
+  frr_config:
+    file: ./frr.TXT
+  iptables_config:
+    file: ./iptables_1.py
+  arp_prevent_config:
+    file: ./arp_prevent.py
+  dnsmasq_config:
+    file: ./dhcp.TXT
+  ipsec_conf:
+    file: ./ipsec.conf
+  ipsec_secrets:
+    file: ./ipsec.secrets

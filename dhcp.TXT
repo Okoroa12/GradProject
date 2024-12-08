@@ -1,0 +1,25 @@
+interface="eth0"
+
+# Specify the DNS server for the clients
+dhcp-option=option:dns-server,192.168.1.3
+
+# Upstream DNS server for this server
+server=8.8.8.8
+
+# DHCP configuration for VLAN 192.168.3.0/24
+dhcp-range=192.168.3.10,192.168.3.100,8h
+dhcp-option=tag:vlan3,option:router,192.168.3.1
+
+# DHCP configuration for VLAN 192.168.2.0/24
+dhcp-range=192.168.2.10,192.168.2.100,8h
+dhcp-option=tag:vlan2,option:router,192.168.2.1
+
+#address=/domain.com/192.168.15.1
+
+# Avoid resolving DNS for private IP ranges unless explicitly configured
+domain-needed
+bogus-priv
+
+# Log queries (optional, for debugging)
+log-queries
+log-dhcp
