@@ -1,3 +1,0 @@
-# GradProject
-
-##btata btaataa
